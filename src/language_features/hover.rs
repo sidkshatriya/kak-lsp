@@ -223,11 +223,10 @@ fn show_hover_in_hover_client(
         fs::write(hover_fifo, contents.as_bytes()).unwrap();
     });
 
-    let command = formatdoc!(
-        "%[
-             edit! -existing -readonly -fifo %opt[lsp_hover_fifo] *hover*
-             set-option buffer=*hover* filetype {}
-         ]",
+    let command = format!(
+        "%[ edit! -existing -readonly -fifo %opt[lsp_hover_fifo] *hover*; \
+             set-option buffer=*hover* filetype {} \
+          ]",
         if is_markdown { "markdown" } else { "''" },
     );
 
