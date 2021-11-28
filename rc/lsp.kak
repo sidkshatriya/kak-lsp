@@ -286,6 +286,7 @@ declare-option -hidden str lsp_hover_fifo %sh{
     mkfifo "$output"
     echo "$output"
 }
+hook -always -group lsp global KakEnd .* %{nop %sh{rm -f "$kak_opt_lsp_hover_fifo"; rmdir "${kak_opt_lsp_hover_fifo%/*}"}}
 
 declare-option -hidden str lsp_symbol_kind_completion %{
     symbol_kinds="\
