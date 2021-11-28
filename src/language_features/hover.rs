@@ -238,7 +238,7 @@ fn show_hover_in_hover_client(
              new %[
                  rename-client {}
                  evaluate-commands {}
-                 add-highlighter -override window/wrap wrap
+                 add-highlighter -override window/wrap wrap -word
                  focus {}
              ]
          ]",
