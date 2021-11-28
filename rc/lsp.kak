@@ -280,6 +280,13 @@ position.column = %d
 ' "${kak_session}" "${kak_client}" "${kak_buffile}" "${kak_opt_filetype}" "${kak_timestamp}" "$maybe_hover_fifo" ${kak_cursor_line} ${kak_cursor_column} | eval "${kak_opt_lsp_cmd} --request") > /dev/null 2>&1 < /dev/null & }
 }
 
+declare-option -hidden str lsp_hover_fifo %sh{
+    tmpdir=$(mktemp -q -d -t 'lsp-hover-client.XXXXXX' 2>/dev/null || mktemp -q -d)
+    output="$tmpdir/fifo"
+    mkfifo "$output"
+    echo "$output"
+}
+
 declare-option -hidden str lsp_symbol_kind_completion %{
     symbol_kinds="\
     File Module Namespace Package Class Method Property Field Constructor Enum Interface
@@ -1957,13 +1964,4 @@ define-command lsp-goto-next-match -docstring 'DEPRECATED: use lsp-next-location
 
 define-command lsp-goto-previous-match -docstring 'DEPRECATED: use lsp-previous-location. Jump to the previous goto match' %{
     lsp-previous-location '*goto*'
-}
-
-declare-option -hidden str lsp_hover_fifo
-
-set-option global lsp_hover_fifo %sh{
-    tmpdir=$(mktemp -q -d -t 'lsp-hover-client.XXXXXX' 2>/dev/null || mktemp -q -d)
-    output="$tmpdir/fifo"
-    mkfifo "$output"
-    echo "$output"
 }
