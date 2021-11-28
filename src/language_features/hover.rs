@@ -173,10 +173,10 @@ fn show_hover_modal(
         diagnostics.replace("§", "§§"),
     );
     let wrapped_command = formatdoc!(
-        "eval %§
-                 {}
-                 {}
-             §",
+        "evaluate-commands %§
+             {}
+             {}
+         §",
         command.replace("§", "§§"),
         do_after.replace("§", "§§")
     );
@@ -200,26 +200,24 @@ fn show_hover_in_hover_client(
     });
 
     let command = formatdoc!(
-        "
-        %[
-            edit! -existing -readonly -fifo %opt[lsp_hover_fifo] *hover*
-            set buffer=*hover* filetype markdown
-        ]"
+        "%[
+             edit! -existing -readonly -fifo %opt[lsp_hover_fifo] *hover*
+             set-option buffer=*hover* filetype markdown
+         ]"
     );
 
     let client = meta.client.clone().unwrap_or_default();
     let command = formatdoc!(
-        "
-        try %[
-            eval -client {} {}
-        ] catch %[
-            new %[
-                rename-client {}
-                eval {}
-                addhl -override window/wrap wrap
-                focus {}
-            ]
-        ]",
+        "try %[
+             evaluate-commands -client {} {}
+         ] catch %[
+             new %[
+                 rename-client {}
+                 evaluate-commands {}
+                 add-highlighter -override window/wrap wrap
+                 focus {}
+             ]
+         ]",
         &hover_client,
         command,
         &hover_client,
