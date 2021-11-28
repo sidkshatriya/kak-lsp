@@ -47,6 +47,7 @@ pub fn editor_hover(
     result: Option<Hover>,
     ctx: &mut Context,
 ) {
+    let for_hover_buffer = matches!(hover_type, HoverType::InfoInHoverClient { .. });
     let diagnostics = ctx.diagnostics.get(&meta.buffile);
     let pos = get_lsp_position(&meta.buffile, &params.position, ctx).unwrap();
     let diagnostics = diagnostics
@@ -68,6 +69,10 @@ pub fn editor_hover(
                             && pos.character <= end.character)
                 })
                 .filter_map(|x| {
+                    if for_hover_buffer {
+                        return Some(format!("* {}", x.message.trim().replace("\n", "\n  ")));
+                    }
+
                     let face = x
                         .severity
                         .map(|sev| match sev {
@@ -106,7 +111,6 @@ pub fn editor_hover(
         .and_then(|l| l.workaround_server_sends_plaintext_labeled_as_markdown)
         .unwrap_or(false);
 
-    let for_hover_buffer = matches!(hover_type, HoverType::InfoInHoverClient { .. });
     let marked_string_to_hover = |ms: MarkedString| {
         if for_hover_buffer {
             match ms {
@@ -176,7 +180,7 @@ pub fn editor_hover(
             show_hover_modal(meta, ctx, modal_heading, do_after, contents, diagnostics);
         }
         HoverType::InfoInHoverClient { fifo, client } => {
-            show_hover_in_hover_client(meta, ctx, fifo, client, is_markdown, contents);
+            show_hover_in_hover_client(meta, ctx, fifo, client, is_markdown, contents, diagnostics);
         }
     };
 }
@@ -213,14 +217,30 @@ fn show_hover_in_hover_client(
     hover_client: String,
     is_markdown: bool,
     contents: String,
+    diagnostics: String,
 ) {
     if contents.is_empty() {
         return;
     }
 
     let handle = std::thread::spawn(move || {
-        // Note that we don't show diagnostics in the hover client
-        fs::write(hover_fifo, contents.as_bytes()).unwrap();
+        fs::write(
+            hover_fifo,
+            if diagnostics.is_empty() {
+                contents
+            } else {
+                formatdoc!(
+                    "{}
+
+                     ## Diagnostics
+                     {}",
+                    contents,
+                    diagnostics,
+                )
+            }
+            .as_bytes(),
+        )
+        .unwrap();
     });
 
     let command = format!(
