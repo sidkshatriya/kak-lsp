@@ -281,7 +281,7 @@ position.column = %d
 }
 
 declare-option -hidden str lsp_hover_fifo %sh{
-    tmpdir=$(mktemp -q -d -t 'lsp-hover-client.XXXXXX' 2>/dev/null || mktemp -q -d)
+    tmpdir=$(mktemp -q -d -t 'kak-lsp-hover-buffer.XXXXXX' 2>/dev/null || mktemp -q -d)
     output="$tmpdir/fifo"
     mkfifo "$output"
     echo "$output"
