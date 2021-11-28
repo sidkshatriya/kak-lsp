@@ -105,32 +105,55 @@ pub fn editor_hover(
         .get(&ctx.language_id)
         .and_then(|l| l.workaround_server_sends_plaintext_labeled_as_markdown)
         .unwrap_or(false);
-    let contents = match result {
-        None => "".to_string(),
-        Some(result) => match result.contents {
-            HoverContents::Scalar(contents) => {
-                marked_string_to_kakoune_markup(contents, force_plaintext)
+
+    let for_hover_buffer = matches!(hover_type, HoverType::InfoInHoverClient { .. });
+    let marked_string_to_hover = |ms: MarkedString| {
+        if for_hover_buffer {
+            match ms {
+                MarkedString::String(markdown) => markdown,
+                MarkedString::LanguageString(LanguageString { language, value }) => formatdoc!(
+                    "```{}
+                     {}
+                     ```",
+                    &language,
+                    &value,
+                ),
             }
-            HoverContents::Array(contents) => contents
-                .into_iter()
-                .map(|md| marked_string_to_kakoune_markup(md, force_plaintext))
-                .filter(|markup| !markup.is_empty())
-                .join(&format!(
-                    "\n{{{}}}---{{{}}}\n",
-                    FACE_INFO_RULE, FACE_INFO_DEFAULT
-                )),
+        } else {
+            marked_string_to_kakoune_markup(ms, force_plaintext)
+        }
+    };
+
+    let (is_markdown, contents) = match result {
+        None => (false, "".to_string()),
+        Some(result) => match result.contents {
+            HoverContents::Scalar(contents) => (true, marked_string_to_hover(contents)),
+            HoverContents::Array(contents) => (
+                true,
+                contents
+                    .into_iter()
+                    .map(marked_string_to_hover)
+                    .filter(|markup| !markup.is_empty())
+                    .join(&if for_hover_buffer {
+                        "\n---\n".to_string()
+                    } else {
+                        format!("\n{{{}}}---{{{}}}\n", FACE_INFO_RULE, FACE_INFO_DEFAULT)
+                    }),
+            ),
             HoverContents::Markup(contents) => match contents.kind {
-                MarkupKind::Markdown => {
-                    if let HoverType::InfoInHoverClient { .. } = hover_type {
+                MarkupKind::Markdown => (
+                    true,
+                    if for_hover_buffer {
                         contents.value
                     } else {
                         markdown_to_kakoune_markup(contents.value, force_plaintext)
-                    }
-                }
-                MarkupKind::PlainText => contents.value,
+                    },
+                ),
+                MarkupKind::PlainText => (false, contents.value),
             },
         },
     };
+    let is_markdown = is_markdown && !force_plaintext;
 
     match hover_type {
         HoverType::Normal => {
@@ -153,7 +176,7 @@ pub fn editor_hover(
             show_hover_modal(meta, ctx, modal_heading, do_after, contents, diagnostics);
         }
         HoverType::InfoInHoverClient { fifo, client } => {
-            show_hover_in_hover_client(meta, ctx, fifo, client, contents);
+            show_hover_in_hover_client(meta, ctx, fifo, client, is_markdown, contents);
         }
     };
 }
@@ -188,6 +211,7 @@ fn show_hover_in_hover_client(
     ctx: &Context,
     hover_fifo: String,
     hover_client: String,
+    is_markdown: bool,
     contents: String,
 ) {
     if contents.is_empty() {
@@ -202,8 +226,9 @@ fn show_hover_in_hover_client(
     let command = formatdoc!(
         "%[
              edit! -existing -readonly -fifo %opt[lsp_hover_fifo] *hover*
-             set-option buffer=*hover* filetype markdown
-         ]"
+             set-option buffer=*hover* filetype {}
+         ]",
+        if is_markdown { "markdown" } else { "''" },
     );
 
     let client = meta.client.clone().unwrap_or_default();
