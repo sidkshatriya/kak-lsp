@@ -12,12 +12,16 @@ use serde::Deserialize;
 use url::Url;
 
 pub fn text_document_hover(meta: EditorMeta, params: EditorParams, ctx: &mut Context) {
-    let maybe_hover_fifo = HoverDetails::deserialize(params.clone())
-        .unwrap()
-        .hover_fifo;
+    let HoverDetails {
+        hover_fifo: maybe_hover_fifo,
+        hover_client: maybe_hover_client,
+    } = HoverDetails::deserialize(params.clone()).unwrap();
 
     let hover_type = match maybe_hover_fifo {
-        Some(fifo) => HoverType::InfoInHoverClient { fifo },
+        Some(fifo) => HoverType::InfoInHoverClient {
+            fifo,
+            client: maybe_hover_client.unwrap(),
+        },
         None => HoverType::Normal,
     };
 
@@ -148,8 +152,8 @@ pub fn editor_hover(
         } => {
             show_hover_modal(meta, ctx, modal_heading, do_after, contents, diagnostics);
         }
-        HoverType::InfoInHoverClient { fifo } => {
-            show_hover_in_hover_client(meta, ctx, fifo, contents);
+        HoverType::InfoInHoverClient { fifo, client } => {
+            show_hover_in_hover_client(meta, ctx, fifo, client, contents);
         }
     };
 }
@@ -183,6 +187,7 @@ fn show_hover_in_hover_client(
     meta: EditorMeta,
     ctx: &Context,
     hover_fifo: String,
+    hover_client: String,
     contents: String,
 ) {
     if contents.is_empty() {
@@ -206,16 +211,18 @@ fn show_hover_in_hover_client(
     let command = formatdoc!(
         "
         try %[
-            eval -client hoverclient {}
+            eval -client {} {}
         ] catch %[
             new %[
-                rename-client hoverclient
+                rename-client {}
                 eval {}
                 addhl -override window/wrap wrap
                 focus {}
             ]
         ]",
+        &hover_client,
         command,
+        &hover_client,
         command,
         client
     );

@@ -255,15 +255,22 @@ define-command lsp-hover -docstring "Request hover info for the main cursor posi
     lsp-did-change-and-then lsp-hover-request
 }
 
-define-command lsp-hover-in-hover-client -docstring "Request hover info for the main cursor position in a separate client" %{
-    lsp-did-change-and-then "lsp-hover-request in_hover_client"
+define-command lsp-hover-buffer -params 0..1 -client-completion \
+    -docstring "lsp-hover-buffer [<client>]: request hover info for the main cursor position in a scratch buffer.
+
+If a client name argument is given use that client, or spawn a new client with that name." %{
+    lsp-did-change-and-then "lsp-hover-request '%arg{1}'"
 }
 
 define-command -hidden lsp-hover-request -params 0..1 -docstring "Request hover info for the main cursor position" %{
     nop %sh{
-        maybe_hover_fifo=""
-        if [ "$1" = "in_hover_client" ]; then
-            maybe_hover_fifo="hoverFifo = \"${kak_opt_lsp_hover_fifo}\""
+        hover_buffer_args=""
+        if [ $# -eq 1 ]; then
+            client=${1:-${kak_opt_docsclient:-$kak_client}}
+            hover_buffer_args=$(printf '%s\n' \
+                "hoverFifo = \"${kak_opt_lsp_hover_fifo}\"" \
+                "hoverClient = \"${client}\""
+            )
         fi
 
         (printf '
@@ -277,7 +284,7 @@ method    = "textDocument/hover"
 %s
 position.line = %d
 position.column = %d
-' "${kak_session}" "${kak_client}" "${kak_buffile}" "${kak_opt_filetype}" "${kak_timestamp}" "$maybe_hover_fifo" ${kak_cursor_line} ${kak_cursor_column} | eval "${kak_opt_lsp_cmd} --request") > /dev/null 2>&1 < /dev/null & }
+' "${kak_session}" "${kak_client}" "${kak_buffile}" "${kak_opt_filetype}" "${kak_timestamp}" "$hover_buffer_args" ${kak_cursor_line} ${kak_cursor_column} | eval "${kak_opt_lsp_cmd} --request") > /dev/null 2>&1 < /dev/null & }
 }
 
 declare-option -hidden str lsp_hover_fifo %sh{
@@ -1547,7 +1554,7 @@ map global lsp d '<esc>: lsp-definition<ret>'              -docstring 'go to def
 map global lsp e '<esc>: lsp-diagnostics<ret>'             -docstring 'list project errors, info, hints and warnings'
 map global lsp f '<esc>: lsp-formatting<ret>'              -docstring 'format buffer'
 map global lsp h '<esc>: lsp-hover<ret>'                   -docstring 'show info for current position'
-map global lsp H '<esc>: lsp-hover-in-hover-client<ret>'   -docstring 'show info for current position in separate client'
+map global lsp H '<esc>: lsp-hover-buffer<ret>'            -docstring 'show info for current position in a scratch buffer'
 map global lsp i '<esc>: lsp-implementation<ret>'          -docstring 'go to implementation'
 map global lsp j '<esc>: lsp-outgoing-calls<ret>'          -docstring 'list outgoing call for function at cursor'
 map global lsp k '<esc>: lsp-incoming-calls<ret>'          -docstring 'list incoming call for function at cursor'

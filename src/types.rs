@@ -161,6 +161,7 @@ pub struct PositionParams {
 #[serde(rename_all = "camelCase")]
 pub struct HoverDetails {
     pub hover_fifo: Option<String>,
+    pub hover_client: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -245,6 +246,7 @@ pub enum HoverType {
     },
     InfoInHoverClient {
         fifo: String,
+        client: String,
     },
 }
 
