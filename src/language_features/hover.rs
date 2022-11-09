@@ -14,6 +14,15 @@ use lsp_types::*;
 use serde::Deserialize;
 use url::Url;
 
+#[derive(Debug)]
+pub enum OCamlExtendedHoverRequest {}
+
+impl Request for OCamlExtendedHoverRequest {
+    type Params = HoverParams;
+    type Result = Option<Hover>;
+    const METHOD: &'static str = "ocamllsp/hoverExtended";
+}
+
 pub fn text_document_hover(meta: EditorMeta, params: EditorParams, ctx: &mut Context) {
     if meta.fifo.is_none() && !attempt_server_capability(ctx, CAPABILITY_HOVER) {
         return;
@@ -43,9 +52,20 @@ pub fn text_document_hover(meta: EditorMeta, params: EditorParams, ctx: &mut Con
         },
         work_done_progress_params: Default::default(),
     };
-    ctx.call::<HoverRequest, _>(meta, req_params, move |ctx: &mut Context, meta, result| {
-        editor_hover(meta, hover_type, cursor, range, result, ctx)
-    });
+
+    if meta.filetype == "ocaml" {
+        ctx.call::<OCamlExtendedHoverRequest, _>(
+            meta,
+            req_params,
+            move |ctx: &mut Context, meta, result| {
+                editor_hover(meta, hover_type, cursor, range, result, ctx)
+            },
+        );
+    } else {
+        ctx.call::<HoverRequest, _>(meta, req_params, move |ctx: &mut Context, meta, result| {
+            editor_hover(meta, hover_type, cursor, range, result, ctx)
+        });
+    }
 }
 
 pub fn editor_hover(
